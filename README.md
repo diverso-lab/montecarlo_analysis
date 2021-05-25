@@ -3,8 +3,8 @@ This repository contains all the resources and artifacts of the paper entitled *
 
 ## Analysis results
 The following files contains the results of the Monte Carlo simulations based analysis of the jHipster feature model used in the paper:
-- [Analysis of the variation points and variants]()
-- [Analysis of the variation points and variant combinations]()
-- [Approximation of the Monte Carlo simulations to the real probability]()
+- [Analysis of the variation points and variants](https://github.com/diverso-lab/montecarlo_analysis/blob/main/results/jhipster_variants_analysis.csv)
+- [Analysis of the variation points and variant combinations](https://github.com/diverso-lab/montecarlo_analysis/blob/main/results/jhipster_variants_combinations_analysis.csv)
+- [Approximation of the Monte Carlo simulations to the real probability](https://github.com/diverso-lab/montecarlo_analysis/blob/main/results/jhipster_montecarlo_approximation_prob.csv)
 
 
