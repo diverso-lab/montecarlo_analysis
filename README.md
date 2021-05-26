@@ -38,8 +38,11 @@ The following files contains the results of the Monte Carlo simulations based an
 The following parameters can be configured in `main_jhipster_analysis.py` to change the behaviour of the analysis: 
     
     - Percentage of Monte Carlo simulations: Use the `PERCENTAGE_SIMULATIONS = 0.01` constant (e.g., 0.01 for 1%).
+  
     - Number of experiments (runs) to calculate medians, means, and standard deviations: `RUNS = 30`.
+  
     - Probability precision for results: `DIGIT_PRECISION = 4` for floating numbers with 4 decimal.
+  
     - Maximum number of Monte Carlo simulations for verifying the approximation to the real probabilities: `MAX_SIMULATIONS_APPROXIMATION = 5000`.
     
 ## References
