@@ -19,8 +19,9 @@ N_MC_SIMULATIONS = 100
 PERCENTAGE_SIMULATIONS = 0.01
 RUNS = 30
 DIGIT_PRECISION = 4
+MAX_SIMULATIONS_APPROXIMATION = 5000
 
-def main():
+def variants_analysis():
     fide_parser = FeatureIDEParser(jhipster.FM_FILE, no_read_constraints=True)
     fm = fide_parser.transform()
 
@@ -30,7 +31,6 @@ def main():
 
     # Read the jHipster configurations
     jhipster_configurations = jhipster.read_jHipster_feature_model_configurations()
-
 
     bdd = BDDModel(feature_model=fm, cnf_formula=JHIPSTER)
     
@@ -42,12 +42,8 @@ def main():
     vps = vp_analysis.get_variation_points()
     print(f"#Variation points: {len(vps)}")
 
-    # for vp in vps:
-    #     print(f"VP: {vp}")
-    #     combinations = vp_analysis.get_variants_combinations(vp)
-    #     print(f" |->#{len(combinations)}")
     
-    with open("jhipster_analysis.csv", 'w+') as file:
+    with open("jhipster_variants_analysis.csv", 'w+') as file:
         file.write("Variation points, Variation point, Configurations, Defective configs., Real prob. defect. configs., Simulations, Median defect. configs., Mean defect. configs., Std defect. configs., Prob. defect. configs., Combinations, Variant combination, NofFeatures, Configs. combi., Ratio, Defect. configs. combi., Prob. defect. configs. combi., Simulations, Runs, Median defect. configs., Mean defect. configs., Std defect. configs., Prob. defect. configs.\n")
 
         for vp in vps:
@@ -55,7 +51,6 @@ def main():
             vp_configurations = bdd.get_configurations(selected_features=[vp])
             vp_defective_configs = [c for c in vp_configurations if jhipster_configurations[c]]
             vp_probability_defective_configs = round(len(vp_defective_configs) / len(vp_configurations), DIGIT_PRECISION)
-
 
             # Monte Carlo simulations for the variation point
             vp_simulations = math.ceil(len(vp_configurations) * PERCENTAGE_SIMULATIONS)
@@ -76,9 +71,6 @@ def main():
             combinations = variants  # only for optional features analysis 
             optional_choice = [True, False]
             for combi in combinations:
-                # Real probabilities of each variant combination
-                #selected_features = list(set(combi).union({vp}))
-                #deselected_features = list(set(variants) - set(combi))
 
                 # only for optional features analysis 
                 original_combi = combi
@@ -92,7 +84,6 @@ def main():
                         selected_features = [vp]  
                         deselected_features = [original_combi]
                         
-
                     combi_configurations = bdd.get_configurations(selected_features=selected_features, deselected_features=deselected_features)
                     combi_configurations_ratio = round(len(combi_configurations) / len(vp_configurations), DIGIT_PRECISION)
                     if len(combi_configurations) > 0:
@@ -125,9 +116,89 @@ def main():
                                 + f'{len(combinations)}, "{[str(f) for f in combi]}", {len(combi)}, {len(combi_configurations)}, {combi_configurations_ratio}, {0}, {0}, ' \
                                 + f'{"-"}, {"-"}, {"-"}, {"-"}, {"-"}, {"-"}\n')
 
-    # for v in bdd.variables:
-    #     print(f"#Configs {v}: {bdd.get_number_of_configurations([v])} ({round(bdd.get_number_of_configurations([v]) / bdd.get_number_of_configurations(), 2)})")
-    #     print(f"#RealConfigs {v}: {len([c for c in configurations if v in c])}")
+def variant_combinations_analysis():
+    fide_parser = FeatureIDEParser(jhipster.FM_FILE, no_read_constraints=True)
+    fm = fide_parser.transform()
+
+    # Read the feature model as CNF model with complex constraints
+    cnf_reader = CNFReader(jhipster.CNF_FILE)
+    cnf_model = cnf_reader.transform()
+
+    # Read the jHipster configurations
+    jhipster_configurations = jhipster.read_jHipster_feature_model_configurations()
+
+    bdd = BDDModel(feature_model=fm, cnf_formula=JHIPSTER)
+    
+    print(f"Variables: {bdd.variables}")
+    print(f"#Variables: {len(bdd.variables)}")
+    print(f"#Configurations: {bdd.get_number_of_configurations()}")
+    
+    vp_analysis = VariationPointAnalysis(fm, bdd)
+    vps = vp_analysis.get_variation_points()
+    print(f"#Variation points: {len(vps)}")
+    
+    with open("jhipster_variants_combinations_analysis.csv", 'w+') as file:
+        file.write("Variation points, Variation point, Configurations, Defective configs., Real prob. defect. configs., Simulations, Median defect. configs., Mean defect. configs., Std defect. configs., Prob. defect. configs., Combinations, Variant combination, NofFeatures, Configs. combi., Ratio, Defect. configs. combi., Prob. defect. configs. combi., Simulations, Runs, Median defect. configs., Mean defect. configs., Std defect. configs., Prob. defect. configs.\n")
+
+        for vp in vps:
+            # Real probabilities of each variation point
+            vp_configurations = bdd.get_configurations(selected_features=[vp])
+            vp_defective_configs = [c for c in vp_configurations if jhipster_configurations[c]]
+            vp_probability_defective_configs = round(len(vp_defective_configs) / len(vp_configurations), DIGIT_PRECISION)
+
+            # Monte Carlo simulations for the variation point
+            vp_simulations = math.ceil(len(vp_configurations) * PERCENTAGE_SIMULATIONS)
+            runs = RUNS
+            vp_defective_configs_in_sample_per_runs = []
+            for r in range(runs):
+                vp_sample_configurations = random.sample(vp_configurations, vp_simulations)
+                vp_defective_configs_in_sample = [c for c in vp_sample_configurations if jhipster_configurations[c]]
+                vp_defective_configs_in_sample_per_runs.append(len(vp_defective_configs_in_sample))
+
+            vp_median_defective_configs_in_sample = round(statistics.median(vp_defective_configs_in_sample_per_runs), DIGIT_PRECISION)
+            vp_mean_defective_configs_in_sample = round(statistics.mean(vp_defective_configs_in_sample_per_runs), DIGIT_PRECISION)
+            vp_std_defective_configs_in_sample = round(statistics.stdev(vp_defective_configs_in_sample_per_runs), DIGIT_PRECISION)
+            vp_sample_median_probability_defective_configs = round(vp_median_defective_configs_in_sample / vp_simulations, DIGIT_PRECISION)
+
+            combinations = vp_analysis.get_variants_combinations(vp)
+            variants = vp_analysis.get_variants(vp)
+
+            for combi in combinations:
+                # Real probabilities of each variant combination
+                selected_features = list(set(combi).union({vp}))
+                deselected_features = list(set(variants) - set(combi))
+
+                combi_configurations = bdd.get_configurations(selected_features=selected_features, deselected_features=deselected_features)
+                combi_configurations_ratio = round(len(combi_configurations) / len(vp_configurations), DIGIT_PRECISION)
+                if len(combi_configurations) > 0:
+                    combi_defective_configs = [c for c in combi_configurations if jhipster_configurations[c]]
+                    combi_probability_defective_configs = round(len(combi_defective_configs) / len(combi_configurations), DIGIT_PRECISION)
+
+                    # Monte Carlo simulations
+                    simulations = math.ceil(len(combi_configurations) * PERCENTAGE_SIMULATIONS)
+                    # if simulations > len(combi_configurations):
+                    #     simulations = len(combi_configurations)
+                    runs = RUNS
+                    defective_configs_in_sample_per_runs = []
+                    for r in range(runs):
+                        sample_configurations = random.sample(combi_configurations, simulations)
+                        defective_configs_in_sample = [c for c in sample_configurations if jhipster_configurations[c]]
+                        defective_configs_in_sample_per_runs.append(len(defective_configs_in_sample))
+                    
+                    median_defective_configs_in_sample = round(statistics.median(defective_configs_in_sample_per_runs), DIGIT_PRECISION)
+                    mean_defective_configs_in_sample = round(statistics.mean(defective_configs_in_sample_per_runs), DIGIT_PRECISION)
+                    std_defective_configs_in_sample = round(statistics.stdev(defective_configs_in_sample_per_runs), DIGIT_PRECISION)
+                    sample_median_probability_defective_configs = round(median_defective_configs_in_sample / simulations, DIGIT_PRECISION)
+
+                    file.write(f'{len(vps)}, {vp.name}, {len(vp_configurations)}, {len(vp_defective_configs)}, {vp_probability_defective_configs}, ' \
+                                + f'{vp_simulations}, {vp_median_defective_configs_in_sample}, {vp_mean_defective_configs_in_sample}, {vp_std_defective_configs_in_sample}, {vp_sample_median_probability_defective_configs}, ' \
+                                + f'{len(combinations)}, "{[str(f) for f in combi]}", {len(combi)}, {len(combi_configurations)}, {combi_configurations_ratio}, {len(combi_defective_configs)}, {combi_probability_defective_configs}, ' \
+                                + f'{simulations}, {runs}, {median_defective_configs_in_sample}, {mean_defective_configs_in_sample}, {std_defective_configs_in_sample}, {sample_median_probability_defective_configs}\n')
+                else:
+                    file.write(f'{len(vps)}, {vp.name}, {len(vp_configurations)}, {len(vp_defective_configs)}, {vp_probability_defective_configs}, ' \
+                            + f'{vp_simulations}, {vp_median_defective_configs_in_sample}, {vp_mean_defective_configs_in_sample}, {vp_std_defective_configs_in_sample}, {vp_sample_median_probability_defective_configs}, ' \
+                            + f'{len(combinations)}, "{[str(f) for f in combi]}", {len(combi)}, {len(combi_configurations)}, {combi_configurations_ratio}, {0}, {0}, ' \
+                            + f'{"-"}, {"-"}, {"-"}, {"-"}, {"-"}, {"-"}\n')
 
 def calculate_montecarlo_approximation():
     fide_parser = FeatureIDEParser(jhipster.FM_FILE, no_read_constraints=True)
@@ -153,8 +224,8 @@ def calculate_montecarlo_approximation():
     with open("jhipster_mc_approximation.csv", 'w+') as file:
         file.write("Runs, Total configs., Total Defective configs., Real Prob. Defect. configs., Percentage, Simulations, Median defect. configs., Mean defect. configs., Std defect. configs., Prob. defect. configs., Error\n")
 
-        percentages = [x/1000 for x in range(1, 101, 1)]
-        simulations_list = [1] + [x for x in range(10, 5001, 10)]
+        #percentages = [x/1000 for x in range(1, 101, 1)]
+        simulations_list = [1] + [x for x in range(10, MAX_SIMULATIONS_APPROXIMATION+1, 10)]
         #for percentage_sim in percentages:    
         print("Simulation: ", end='', flush=True)
         for simulations in simulations_list:
@@ -178,7 +249,7 @@ def calculate_montecarlo_approximation():
             file.write(f'{runs}, {len(all_configurations)}, {len(all_defective_configs)}, {all_prob_defect_configs}, {percentage_sim}, {simulations}, ' \
                                 + f'{median_defective_configs_in_sample}, {mean_defective_configs_in_sample}, {std_defective_configs_in_sample}, {sample_median_probability_defective_configs}, {error}\n')
 
-
 if __name__ == "__main__":
-    main()
-    #calculate_montecarlo_approximation()
+    variants_analysis()
+    variant_combinations_analysis()
+    calculate_montecarlo_approximation()
